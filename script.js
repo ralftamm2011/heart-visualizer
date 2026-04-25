@@ -9,7 +9,7 @@ addEventListener("resize", () => {
   canvas.height = innerHeight;
 });
 
-// ---------------- AUDIO ----------------
+// ---------------- AUDIO SETUP ----------------
 const audio = document.getElementById("audio");
 const fileInput = document.getElementById("audioFile");
 
@@ -18,11 +18,10 @@ const audioCtx = new AudioCtx();
 const analyser = audioCtx.createAnalyser();
 analyser.fftSize = 256;
 
-let source;
 let data = new Uint8Array(analyser.frequencyBinCount);
 let sourceCreated = false;
 
-// load local file
+// IMPORTANT: create source ONLY once audio is playable
 fileInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -34,34 +33,24 @@ fileInput.addEventListener("change", async (e) => {
   await audioCtx.resume();
 
   if (!sourceCreated) {
-    source = audioCtx.createMediaElementSource(audio);
+    const source = audioCtx.createMediaElementSource(audio);
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
     sourceCreated = true;
   }
 });
 
-// unlock audio on interaction (required by browsers)
-document.body.addEventListener("click", () => {
-  audioCtx.resume();
-});
-
-// ---------------- MOUSE ----------------
-let mouse = { x: 0, y: 0 };
-
-addEventListener("mousemove", (e) => {
-  mouse.x = (e.clientX - innerWidth / 2) * 0.002;
-  mouse.y = (e.clientY - innerHeight / 2) * 0.002;
-});
+// unlock audio context
+document.body.addEventListener("click", () => audioCtx.resume());
 
 // ---------------- PARTICLES ----------------
 let particles = [];
 
-for (let i = 0; i < 1800; i++) {
+for (let i = 0; i < 1200; i++) {
   particles.push({
-    x: (Math.random() - 0.5) * 1000,
-    y: (Math.random() - 0.5) * 1000,
-    z: Math.random() * 2000
+    x: (Math.random() - 0.5) * 800,
+    y: (Math.random() - 0.5) * 800,
+    z: Math.random() * 1500
   });
 }
 
@@ -69,7 +58,7 @@ for (let i = 0; i < 1800; i++) {
 function drawHeart(x, y, size) {
   ctx.beginPath();
 
-  for (let t = 0; t < Math.PI * 2; t += 0.02) {
+  for (let t = 0; t < Math.PI * 2; t += 0.03) {
     let hx = 16 * Math.pow(Math.sin(t), 3);
     let hy =
       13 * Math.cos(t) -
@@ -84,20 +73,31 @@ function drawHeart(x, y, size) {
   ctx.fill();
 }
 
+// ---------------- MOUSE ----------------
+let mouse = { x: 0, y: 0 };
+
+addEventListener("mousemove", (e) => {
+  mouse.x = (e.clientX - innerWidth / 2) * 0.003;
+  mouse.y = (e.clientY - innerHeight / 2) * 0.003;
+});
+
 // ---------------- LOOP ----------------
 let energySmooth = 0;
 
 function draw() {
+  requestAnimationFrame(draw);
+
   analyser.getByteFrequencyData(data);
 
+  // fallback so it NEVER goes invisible
   let energy = 0;
   for (let i = 0; i < data.length; i++) energy += data[i];
   energy = energy / data.length / 255;
 
-  energySmooth += (energy - energySmooth) * 0.1;
+  energySmooth += (energy - energySmooth) * 0.15;
 
-  // motion trails (flying effect)
-  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  // IMPORTANT: lighter fade (fix blurry screen issue)
+  ctx.fillStyle = "rgba(0,0,0,0.12)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   let cx = canvas.width / 2;
@@ -105,41 +105,39 @@ function draw() {
 
   // ---------------- PARTICLES ----------------
   for (let p of particles) {
-    p.z -= 6 + energySmooth * 10;
+    p.z -= 4 + energySmooth * 8;
 
     if (p.z <= 1) {
-      p.z = 2000;
-      p.x = (Math.random() - 0.5) * 1000;
-      p.y = (Math.random() - 0.5) * 1000;
+      p.z = 1500;
+      p.x = (Math.random() - 0.5) * 800;
+      p.y = (Math.random() - 0.5) * 800;
     }
 
-    let scale = 800 / p.z;
+    let scale = 600 / p.z;
 
     let x = cx + (p.x + mouse.x * p.z) * scale;
     let y = cy + (p.y + mouse.y * p.z) * scale;
 
-    let size = (1 - p.z / 2000) * (1.5 + energySmooth * 3);
+    let size = (1 - p.z / 1500) * (2 + energySmooth * 4);
 
     ctx.beginPath();
     ctx.arc(x, y, size, 0, Math.PI * 2);
 
-    ctx.fillStyle = `rgba(255,120,200,${0.4 + energySmooth})`;
+    ctx.fillStyle = `rgba(255, 100, 180, 0.7)`;
     ctx.shadowColor = "hotpink";
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 8;
 
     ctx.fill();
   }
 
   // ---------------- HEART ----------------
-  let pulse = 9 + energySmooth * 7;
+  let pulse = 10 + energySmooth * 10;
 
-  ctx.fillStyle = `rgba(200,60,140,0.6)`;
+  ctx.fillStyle = "rgba(200,60,140,0.8)";
   ctx.shadowColor = "rgb(200,60,140)";
-  ctx.shadowBlur = 40 + energySmooth * 60;
+  ctx.shadowBlur = 50;
 
   drawHeart(cx, cy, pulse);
-
-  requestAnimationFrame(draw);
 }
 
 draw();
