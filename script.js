@@ -11,45 +11,35 @@ addEventListener("resize", () => {
 
 // ---------------- AUDIO ----------------
 const audio = document.getElementById("audio");
-const fileInput = document.getElementById("audioFile");
+const startBtn = document.getElementById("startBtn");
 
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 const audioCtx = new AudioCtx();
-
 const analyser = audioCtx.createAnalyser();
 analyser.fftSize = 256;
 
 let data = new Uint8Array(analyser.frequencyBinCount);
 let source = null;
+let started = false;
 
-// REQUIRED: unlock audio context properly
-document.body.addEventListener("click", () => {
-  if (audioCtx.state !== "running") {
-    audioCtx.resume();
+// load your mp3 here (put song.mp3 in repo)
+audio.src = "song.mp3";
+
+// ---------------- START BUTTON ----------------
+startBtn.addEventListener("click", async () => {
+  if (started) return;
+  started = true;
+
+  await audioCtx.resume();
+  await audio.play();
+
+  if (!source) {
+    source = audioCtx.createMediaElementSource(audio);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
   }
-});
 
-// file upload → play + connect analyser
-fileInput.addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const url = URL.createObjectURL(file);
-  audio.src = url;
-
-  try {
-    await audio.play();
-    await audioCtx.resume();
-
-    // IMPORTANT: create source ONLY once
-    if (!source) {
-      source = audioCtx.createMediaElementSource(audio);
-      source.connect(analyser);
-      analyser.connect(audioCtx.destination);
-    }
-  } catch (err) {
-    console.log("Audio play blocked:", err);
-  }
+  startBtn.style.display = "none";
 });
 
 // ---------------- MOUSE ----------------
@@ -104,14 +94,13 @@ function draw() {
 
   energySmooth += (energy - energySmooth) * 0.12;
 
-  // smoother trail (fix blurry overload)
   ctx.fillStyle = "rgba(0,0,0,0.14)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   let cx = canvas.width / 2;
   let cy = canvas.height / 2;
 
-  // ---------------- PARTICLES ----------------
+  // particles
   for (let p of particles) {
     p.z -= 5 + energySmooth * 9;
 
@@ -138,7 +127,7 @@ function draw() {
     ctx.fill();
   }
 
-  // ---------------- HEART ----------------
+  // heart
   let pulse = 10 + energySmooth * 8;
 
   ctx.fillStyle = "rgba(200,60,140,0.75)";
