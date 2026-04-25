@@ -18,9 +18,11 @@ const audioCtx = new AudioCtx();
 const analyser = audioCtx.createAnalyser();
 analyser.fftSize = 256;
 
-let sourceCreated = false;
+let source;
 let data = new Uint8Array(analyser.frequencyBinCount);
+let sourceCreated = false;
 
+// load local file
 fileInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -32,14 +34,14 @@ fileInput.addEventListener("change", async (e) => {
   await audioCtx.resume();
 
   if (!sourceCreated) {
-    const source = audioCtx.createMediaElementSource(audio);
+    source = audioCtx.createMediaElementSource(audio);
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
     sourceCreated = true;
   }
 });
 
-// extra safety unlock
+// unlock audio on interaction (required by browsers)
 document.body.addEventListener("click", () => {
   audioCtx.resume();
 });
@@ -94,7 +96,7 @@ function draw() {
 
   energySmooth += (energy - energySmooth) * 0.1;
 
-  // cleaner fade (less “blurry screen” feeling)
+  // motion trails (flying effect)
   ctx.fillStyle = "rgba(0,0,0,0.18)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -103,7 +105,6 @@ function draw() {
 
   // ---------------- PARTICLES ----------------
   for (let p of particles) {
-
     p.z -= 6 + energySmooth * 10;
 
     if (p.z <= 1) {
@@ -130,16 +131,13 @@ function draw() {
   }
 
   // ---------------- HEART ----------------
-  let cx2 = canvas.width / 2;
-  let cy2 = canvas.height / 2;
-
   let pulse = 9 + energySmooth * 7;
 
   ctx.fillStyle = `rgba(200,60,140,0.6)`;
   ctx.shadowColor = "rgb(200,60,140)";
   ctx.shadowBlur = 40 + energySmooth * 60;
 
-  drawHeart(cx2, cy2, pulse);
+  drawHeart(cx, cy, pulse);
 
   requestAnimationFrame(draw);
 }
